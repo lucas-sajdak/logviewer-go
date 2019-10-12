@@ -1,0 +1,14 @@
+line 1 - empty
+line 2 - something
+line 3 - text, and another text
+line 4 - sam eas in previouse line
+line 5 - some strange chars ^%^^@%^&^&*(
+line 6 - basic text like "hello world"
+line 7 - nothing special
+line 8 - 11/22/3333 like in a log
+line 9 - veeeerrrryyyy long teeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeext
+line 10
+line 11 11
+line 12 12
+line 13 13
+line 14 44
