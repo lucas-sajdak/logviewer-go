@@ -1,32 +1,30 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
+	"os"
+	"time"
 
 	"github.com/marcusolsson/tui-go"
 )
 
+const filepath = "d:/files/log.txt"
 const displayedLines = 3
 
-var testText [100]string
-
-var lineIndex = 0
-
+var lineIndex uint
 var labels map[int]*tui.Label
 var input *tui.Entry
 var tf *TextFile
+var debugText *tui.Label
 
 func init() {
-	for i := 0; i != 100; i++ {
-		testText[i] = fmt.Sprintf("Line: %v", i)
-	}
-
 	labels = make(map[int]*tui.Label)
 }
 
 func createRootUIWidget() tui.Widget {
-	tf.gotoLine(0)
+	tf.goTo(lineIndex)
 	t := tui.NewTable(0, 0)
 	t.AppendRow(tui.NewLabel("First line........."))
 	for i := 0; i != displayedLines; i++ {
@@ -36,26 +34,33 @@ func createRootUIWidget() tui.Widget {
 	}
 	t.AppendRow(tui.NewLabel("Last line........."))
 	t.OnSelectionChanged(func(t *tui.Table) {
+		now := time.Now()
 		if t.Selected() == 0 {
 			t.SetSelected(1)
 			lineIndex--
-			tf.gotoLine(lineIndex)
+			tf.goTo(lineIndex)
 		}
-
 		if t.Selected() == displayedLines+1 {
 			t.SetSelected(displayedLines)
 			lineIndex++
-			tf.gotoLine(lineIndex)
+			tf.goTo(lineIndex)
 		}
 		updateDisplayedLines()
+		debugText.SetText(fmt.Sprintf("OnSelectionChanged took %v", time.Since(now)))
 	})
 
 	t.SetFocused(true)
+
+	debugText = tui.NewLabel("debug text")
+	debugBox := tui.NewVBox(debugText)
+	debugBox.SetBorder(true)
+
 	input = tui.NewEntry()
 	input.SetText("enter text here")
 	input.SetFocused(true)
 	t.SetSelected(1)
 	uiRoot := tui.NewVBox(
+		debugBox,
 		t,
 		tui.NewSpacer(),
 		input)
@@ -65,39 +70,58 @@ func createRootUIWidget() tui.Widget {
 func updateDisplayedLines() {
 	for i := 0; i != displayedLines; i++ {
 		l, _ := labels[i]
-		text, ok := tf.Lines[i+lineIndex]
+		_, ok := tf.CachedLines[uint(i)+lineIndex]
 		if ok {
-			l.SetText(text)
+			line, _ := tf.CachedLines[uint(i)+lineIndex]
+			l.SetText(line.Contents)
 		} else {
 			l.SetText("")
 		}
 	}
+
+	input.SetText(fmt.Sprintf("Cache %v - %v", tf.startingLineIndex, tf.cacheSize))
+}
+
+func printLinesCount() {
+	f, err := os.Open(filepath)
+	if err != nil {
+		log.Panicf("Open() failed: %v", err.Error())
+	}
+	defer f.Close()
+	s := bufio.NewScanner(f)
+	var lines int
+	for s.Scan() {
+		lines++
+	}
+	debugText.SetText(fmt.Sprintf("Lines in file: %v", lines))
 }
 
 func main() {
+	fmt.Println("Started...")
+	tf = NewTextFile(filepath, 500000)
+	//	fmt.Println(tf)
+	//	tf.goTo(2)
+	//	fmt.Println(tf)
 
-	fmt.Print("Started...")
+	tf.goTo(10000000)
 
-	tf = NewTextFile("./log.txt", 9)
+	tf.goTo(10000000)
+	//	fmt.Println(tf)
 
-	//	tf.gotoLine(0)
-	//	fmt.Printf("%v", tf)
+	/*
+		ui, err := tui.New(createRootUIWidget())
+		if err != nil {
+			log.Panicf("unable to create UI: %s", err.Error())
+		}
 
-	//	tf.gotoLine(1)
-	//	fmt.Printf("%v", tf)
+		printLinesCount()
 
-	ui, err := tui.New(createRootUIWidget())
-	if err != nil {
-		log.Panicf("unable to create UI: %s", err.Error())
-	}
+		ui.SetKeybinding("Ctrl+C", func() { ui.Quit() })
+		ui.SetKeybinding("Esc", func() { ui.Quit() })
 
-	updateDisplayedLines()
-
-	ui.SetKeybinding("Ctrl+C", func() { ui.Quit() })
-	ui.SetKeybinding("Esc", func() { ui.Quit() })
-
-	if err := ui.Run(); err != nil {
-		log.Fatal(err)
-	}
+		if err := ui.Run(); err != nil {
+			log.Fatal(err)
+		}
+	*/
 
 }
