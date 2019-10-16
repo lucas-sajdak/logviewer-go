@@ -10,6 +10,22 @@ import (
 	"time"
 )
 
+// Min returns minimum from two integers
+func Min(x, y int64) int64 {
+	if x < y {
+		return x
+	}
+	return y
+}
+
+// Max returns maximum from two integers
+func Max(x, y int64) int64 {
+	if x > y {
+		return x
+	}
+	return y
+}
+
 // FileLine keeps line of text from the file and its position inside the file
 type FileLine struct {
 	Contents string
@@ -41,15 +57,80 @@ func NewTextFile(filepath string, cacheSize uint) *TextFile {
 	return result
 }
 
-func (tf *TextFile) goTo(lineIndex uint) {
-	now := time.Now()
-
-	var curLine uint
-	var p int64
-
+func (tf *TextFile) getLinePosition(fromLine uint, fromPos int64, lineOffset int) (int64, error) {
+	if fromPos == 0 {
+		return 0, nil
+	}
+	bufferSize := Min(1024*512, fromPos-1)
+	tf.file.Seek(fromPos-1, io.SeekStart)
+	tf.file.Seek(-bufferSize, io.SeekCurrent)
 	r := bufio.NewReader(tf.file)
 
+	b := make([]byte, bufferSize)
+	if _, err := r.Read(b); err != nil {
+		fmt.Println("Read() failed: ", err.Error())
+	}
+
+	//	fmt.Printf("read:<%s>", string(b))
+
+	var i int64
+	currentLine := fromLine
+	newLineOffset := lineOffset
+	var posInFile int64
+	for i = bufferSize - 1; i != -1; i-- {
+		posInFile = fromPos - (bufferSize - i)
+		if b[i] == '\n' {
+			currentLine--
+			newLineOffset++
+			//			fmt.Println("Line at:", currentLine, newLineOffset, posInFile)
+			if int(currentLine) == int(fromLine)+lineOffset {
+				return posInFile, nil
+			}
+		}
+	}
+
+	if posInFile == 0 {
+		return 0, fmt.Errorf("Error")
+	}
+
+	return tf.getLinePosition(currentLine, posInFile, newLineOffset)
+}
+
+func (tf *TextFile) goTo(lineIndex uint) {
+	now := time.Now()
+	var curLine uint
+	var p int64
+	r := bufio.NewReader(tf.file)
 	if lineIndex < tf.startingLineIndex {
+
+		p, _ := tf.getLinePosition(
+			tf.startingLineIndex,
+			tf.CachedLines[tf.startingLineIndex].position,
+			int(lineIndex)-int(tf.startingLineIndex))
+		//		fmt.Println("Found at:", p)
+		curLine = lineIndex
+
+		tf.CachedLines = make(map[uint]FileLine)
+		tf.file.Seek(p, io.SeekStart)
+		for {
+			b, err := r.ReadBytes('\n')
+			if err != nil {
+				log.Panic("ReadBytes() failed: ", err.Error())
+			}
+
+			if curLine >= lineIndex {
+				notRNEndLine := strings.TrimSuffix(string(b), "\r\n") // deal with "\r\n"
+				notREndLine := strings.TrimSuffix(notRNEndLine, "\n") // deal with "\n"
+				tf.CachedLines[curLine] = FileLine{notREndLine, p}
+			}
+
+			p += int64(len(b))
+
+			curLine++
+			if curLine > lineIndex+tf.cacheSize-1 {
+				break
+			}
+		}
 
 	} else {
 		if _, ok := tf.CachedLines[lineIndex]; ok {
@@ -65,7 +146,6 @@ func (tf *TextFile) goTo(lineIndex uint) {
 		}
 
 		tf.CachedLines = make(map[uint]FileLine)
-
 		tf.file.Seek(p, io.SeekStart)
 		for {
 			b, err := r.ReadBytes('\n')
@@ -89,7 +169,7 @@ func (tf *TextFile) goTo(lineIndex uint) {
 	}
 
 	tf.startingLineIndex = lineIndex
-	fmt.Println("goTo(...)", time.Since(now))
+	fmt.Printf("goTo(%v): %v\n", lineIndex, time.Since(now))
 }
 
 func (tf TextFile) String() string {

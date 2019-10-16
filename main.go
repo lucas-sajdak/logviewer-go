@@ -98,14 +98,21 @@ func printLinesCount() {
 
 func main() {
 	fmt.Println("Started...")
-	tf = NewTextFile(filepath, 500000)
-	//	fmt.Println(tf)
-	//	tf.goTo(2)
+	tf = NewTextFile(filepath, 3)
 	//	fmt.Println(tf)
 
-	tf.goTo(10000000)
+	tf.goTo(3000000)
+	tf.goTo(0)
+	tf.goTo(3000000)
+	//	fmt.Println(tf)
 
-	tf.goTo(10000000)
+	tf.goTo(1)
+	//	fmt.Println(tf)
+
+	tf.goTo(3)
+	//	fmt.Println(tf)
+
+	tf.goTo(1)
 	//	fmt.Println(tf)
 
 	/*
