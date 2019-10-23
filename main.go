@@ -38,11 +38,21 @@ func createRootUIWidget() tui.Widget {
 		if t.Selected() == 0 {
 			t.SetSelected(1)
 			lineIndex--
-			tf.goTo(lineIndex)
+			if lineIndex < tf.startingLineIndex {
+				newStartingLine := uint(Max(int64(tf.startingLineIndex), int64(lineIndex-displayedLines)))
+				tf.goTo(newStartingLine)
+			}
+
 		}
 		if t.Selected() == displayedLines+1 {
 			t.SetSelected(displayedLines)
 			lineIndex++
+
+			if lineIndex > tf.startingLineIndex+tf.cacheSize {
+				newStartingLine := uint(lineIndex - tf.cacheSize)
+				tf.goTo(newStartingLine)
+			}
+
 			tf.goTo(lineIndex)
 		}
 		updateDisplayedLines()
@@ -98,37 +108,20 @@ func printLinesCount() {
 
 func main() {
 	fmt.Println("Started...")
-	tf = NewTextFile(filepath, 3)
-	//	fmt.Println(tf)
+	tf = NewTextFile(filepath, 3*displayedLines)
 
-	tf.goTo(3000000)
-	tf.goTo(0)
-	tf.goTo(3000000)
-	//	fmt.Println(tf)
+	ui, err := tui.New(createRootUIWidget())
+	if err != nil {
+		log.Panicf("unable to create UI: %s", err.Error())
+	}
 
-	tf.goTo(1)
-	//	fmt.Println(tf)
+	printLinesCount()
 
-	tf.goTo(3)
-	//	fmt.Println(tf)
+	ui.SetKeybinding("Ctrl+C", func() { ui.Quit() })
+	ui.SetKeybinding("Esc", func() { ui.Quit() })
 
-	tf.goTo(1)
-	//	fmt.Println(tf)
-
-	/*
-		ui, err := tui.New(createRootUIWidget())
-		if err != nil {
-			log.Panicf("unable to create UI: %s", err.Error())
-		}
-
-		printLinesCount()
-
-		ui.SetKeybinding("Ctrl+C", func() { ui.Quit() })
-		ui.SetKeybinding("Esc", func() { ui.Quit() })
-
-		if err := ui.Run(); err != nil {
-			log.Fatal(err)
-		}
-	*/
+	if err := ui.Run(); err != nil {
+		log.Fatal(err)
+	}
 
 }
