@@ -11,9 +11,11 @@ import (
 )
 
 const filepath = "d:/files/log.txt"
-const displayedLines = 3
+const visibleLinesCount = 1
+const marginLinesCount = 1
 
-var lineIndex uint
+var firstVisibleLineIndex uint
+var topLabel *tui.Label
 var labels map[int]*tui.Label
 var input *tui.Entry
 var tf *TextFile
@@ -24,10 +26,11 @@ func init() {
 }
 
 func createRootUIWidget() tui.Widget {
-	tf.goTo(lineIndex)
+	tf.goTo(firstVisibleLineIndex)
 	t := tui.NewTable(0, 0)
-	t.AppendRow(tui.NewLabel("First line........."))
-	for i := 0; i != displayedLines; i++ {
+	topLabel = tui.NewLabel("First line.........")
+	t.AppendRow(topLabel)
+	for i := 0; i != visibleLinesCount; i++ {
 		l := tui.NewLabel("[empty line]")
 		t.AppendRow(l)
 		labels[i] = l
@@ -37,25 +40,26 @@ func createRootUIWidget() tui.Widget {
 		now := time.Now()
 		if t.Selected() == 0 {
 			t.SetSelected(1)
-			lineIndex--
-			if lineIndex < tf.startingLineIndex {
-				newStartingLine := uint(Max(int64(tf.startingLineIndex), int64(lineIndex-displayedLines)))
+
+			if firstVisibleLineIndex > 0 {
+				firstVisibleLineIndex--
+			}
+
+			if firstVisibleLineIndex < tf.startingLineIndex {
+				newStartingLine := uint(Max(0, int64(firstVisibleLineIndex-marginLinesCount)))
 				tf.goTo(newStartingLine)
 			}
 
 		}
-		if t.Selected() == displayedLines+1 {
-			t.SetSelected(displayedLines)
-			lineIndex++
-
-			if lineIndex > tf.startingLineIndex+tf.cacheSize {
-				newStartingLine := uint(lineIndex - tf.cacheSize)
-				tf.goTo(newStartingLine)
+		if t.Selected() == visibleLinesCount+1 {
+			t.SetSelected(visibleLinesCount)
+			firstVisibleLineIndex++
+			if firstVisibleLineIndex+visibleLinesCount > tf.startingLineIndex+tf.cacheSize {
+				newStartingLine := Max(0, int64(firstVisibleLineIndex-marginLinesCount))
+				tf.goTo(uint(newStartingLine))
 			}
-
-			tf.goTo(lineIndex)
 		}
-		updateDisplayedLines()
+		updateVisibleLines()
 		debugText.SetText(fmt.Sprintf("OnSelectionChanged took %v", time.Since(now)))
 	})
 
@@ -77,19 +81,22 @@ func createRootUIWidget() tui.Widget {
 	return uiRoot
 }
 
-func updateDisplayedLines() {
-	for i := 0; i != displayedLines; i++ {
+func updateVisibleLines() {
+
+	topLabel.SetText(fmt.Sprintf("[Line %v/...]", firstVisibleLineIndex))
+
+	for i := 0; i != visibleLinesCount; i++ {
 		l, _ := labels[i]
-		_, ok := tf.CachedLines[uint(i)+lineIndex]
+		_, ok := tf.CachedLines[uint(i)+firstVisibleLineIndex]
 		if ok {
-			line, _ := tf.CachedLines[uint(i)+lineIndex]
+			line, _ := tf.CachedLines[uint(i)+firstVisibleLineIndex]
 			l.SetText(line.Contents)
 		} else {
 			l.SetText("")
 		}
 	}
 
-	input.SetText(fmt.Sprintf("Cache %v - %v", tf.startingLineIndex, tf.cacheSize))
+	input.SetText(fmt.Sprintf("Cached [%v-%v]", tf.startingLineIndex, tf.startingLineIndex+tf.cacheSize-1))
 }
 
 func printLinesCount() {
@@ -108,14 +115,16 @@ func printLinesCount() {
 
 func main() {
 	fmt.Println("Started...")
-	tf = NewTextFile(filepath, 3*displayedLines)
+	tf = NewTextFile(filepath, visibleLinesCount+2*marginLinesCount)
 
 	ui, err := tui.New(createRootUIWidget())
 	if err != nil {
 		log.Panicf("unable to create UI: %s", err.Error())
 	}
 
-	printLinesCount()
+	updateVisibleLines()
+
+	//	printLinesCount()
 
 	ui.SetKeybinding("Ctrl+C", func() { ui.Quit() })
 	ui.SetKeybinding("Esc", func() { ui.Quit() })
