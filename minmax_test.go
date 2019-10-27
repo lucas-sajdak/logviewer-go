@@ -3,7 +3,6 @@ package main
 import "testing"
 
 func TestMaxAreOnLeft(t *testing.T) {
-
 	maxesAreOnLeft := []struct {
 		left     int64
 		right    int64
@@ -24,7 +23,6 @@ func TestMaxAreOnLeft(t *testing.T) {
 }
 
 func TestMaxAreOnRight(t *testing.T) {
-
 	maxesAreOnLeft := []struct {
 		left     int64
 		right    int64
