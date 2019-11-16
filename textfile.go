@@ -48,8 +48,6 @@ func getLinePosition(rs io.ReadSeeker, fromLine uint, fromPos int64, lineOffset 
 		fmt.Println("Read() failed: ", err.Error())
 	}
 
-	//	fmt.Printf("read:<%s>", string(b))
-
 	var i int64
 	currentLine := fromLine
 	newLineOffset := lineOffset
@@ -77,30 +75,29 @@ func (tf *TextFile) goTo(lineIndex uint) {
 	var curLine uint
 	var p int64
 	r := bufio.NewReader(tf.rs)
-	/*
-		if lineIndex < tf.startingLineIndex {
-			p, _ = getLinePosition(
-				tf.file,
-				tf.startingLineIndex,
-				tf.CachedLines[tf.startingLineIndex].position,
-				int(lineIndex)-int(tf.startingLineIndex))
-			//		fmt.Println("Found at:", p)
-			curLine = lineIndex
 
+	if lineIndex < tf.startingLineIndex {
+		p, _ = getLinePosition(
+			tf.rs,
+			tf.startingLineIndex,
+			tf.CachedLines[tf.startingLineIndex].position,
+			int(lineIndex)-int(tf.startingLineIndex))
+		//		fmt.Println("Found at:", p)
+		curLine = lineIndex
+
+	} else {
+		if _, ok := tf.CachedLines[lineIndex]; ok {
+			line, _ := tf.CachedLines[lineIndex]
+			curLine = lineIndex
+			p = line.position
 		} else {
-			if _, ok := tf.CachedLines[lineIndex]; ok {
-				line, _ := tf.CachedLines[lineIndex]
-				curLine = lineIndex
+			if _, ok := tf.CachedLines[tf.startingLineIndex+tf.cacheSize-1]; ok {
+				line, _ := tf.CachedLines[tf.startingLineIndex+tf.cacheSize-1]
+				curLine = tf.startingLineIndex + tf.cacheSize - 1
 				p = line.position
-			} else {
-				if _, ok := tf.CachedLines[tf.startingLineIndex+tf.cacheSize-1]; ok {
-					line, _ := tf.CachedLines[tf.startingLineIndex+tf.cacheSize-1]
-					curLine = tf.startingLineIndex + tf.cacheSize - 1
-					p = line.position
-				}
 			}
 		}
-	*/
+	}
 
 	tf.CachedLines = make(map[uint]FileLine)
 	tf.rs.Seek(p, io.SeekStart)
