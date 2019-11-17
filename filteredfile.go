@@ -13,13 +13,24 @@ type filteredFile struct {
 func newFilteredFile(rs io.ReadSeeker, filter func(line FileLine) bool) *filteredFile {
 	result := &filteredFile{}
 	result.Lines = make(map[uint]int64)
-	tf := NewTextFile(rs, 10)
+	tf := NewTextFile(rs, 1)
 
-	for n, l := range tf.CachedLines {
-		if filter(l) {
-			result.Lines[n] = l.position
+	fmt.Println("line", tf.startingLineIndex)
+
+	success := true
+	for success {
+		for n, l := range tf.CachedLines {
+			if filter(l) {
+				result.Lines[n] = l.position
+			}
 		}
+
+		fmt.Println("line", tf.startingLineIndex, tf.startingLineIndex+tf.cacheSize)
+		tf.goTo(tf.startingLineIndex + tf.cacheSize)
+
+		success = len(tf.CachedLines) > 0
 	}
+
 	return result
 }
 
