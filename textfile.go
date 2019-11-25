@@ -75,16 +75,15 @@ func (tf *TextFile) goTo(lineIndex uint) {
 	var curLine uint
 	var p int64
 	r := bufio.NewReader(tf.rs)
-
 	if lineIndex < tf.startingLineIndex {
-		p, _ = getLinePosition(
-			tf.rs,
-			tf.startingLineIndex,
-			tf.CachedLines[tf.startingLineIndex].position,
-			int(lineIndex)-int(tf.startingLineIndex))
-		//		fmt.Println("Found at:", p)
-		curLine = lineIndex
-
+		if _, ok := tf.CachedLines[tf.startingLineIndex]; ok {
+			p, _ = getLinePosition(
+				tf.rs,
+				tf.startingLineIndex,
+				tf.CachedLines[tf.startingLineIndex].position,
+				int(lineIndex)-int(tf.startingLineIndex))
+			curLine = lineIndex
+		}
 	} else {
 		if _, ok := tf.CachedLines[lineIndex]; ok {
 			line, _ := tf.CachedLines[lineIndex]
@@ -100,6 +99,8 @@ func (tf *TextFile) goTo(lineIndex uint) {
 	}
 
 	tf.CachedLines = make(map[uint]FileLine)
+	tf.startingLineIndex = lineIndex
+
 	tf.rs.Seek(p, io.SeekStart)
 	for {
 		b, err := r.ReadBytes('\n')
@@ -120,8 +121,6 @@ func (tf *TextFile) goTo(lineIndex uint) {
 			break
 		}
 	}
-
-	tf.startingLineIndex = lineIndex
 }
 
 func (tf TextFile) String() string {
@@ -135,8 +134,7 @@ func (tf TextFile) String() string {
 	}
 	sb.WriteString(fmt.Sprintf("startingLine:%v cacheSize:%v", tf.startingLineIndex, tf.cacheSize))
 	for k, v := range tf.CachedLines {
-		sb.WriteString(fmt.Sprintf("L%v:%v(p:%v)\n", k, v.Contents, v.position))
+		sb.WriteString(fmt.Sprintf(" L%v:%v(p:%v) ", k, v.Contents, v.position))
 	}
-	sb.WriteString(fmt.Sprintf("%T-END", tf))
 	return sb.String()
 }
